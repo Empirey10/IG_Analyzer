@@ -16,24 +16,46 @@ themeToggle.addEventListener("click", () => {
 /* ══════════════════════════════════════════════════════════════
        SECTION 2: FILE UPLOAD & DRAG/DROP
     ══════════════════════════════════════════════════════════════ */
-const dropzone = document.getElementById("dropzone");
-const fileInput = document.getElementById("fileInput");
+// Event untuk upload file lama
+const dropzoneOld = document.getElementById("dropzoneOld");
+const fileInputOld = document.getElementById("fileInputOld");
+let oldFileData = null;
+let newFileData = null;
 
-dropzone.addEventListener("dragover", (e) => {
+dropzoneOld.addEventListener("dragover", (e) => {
   e.preventDefault();
-  dropzone.classList.add("drag-over");
+  dropzoneOld.classList.add("drag-over");
 });
-dropzone.addEventListener("dragleave", () =>
-  dropzone.classList.remove("drag-over"),
-);
-dropzone.addEventListener("drop", (e) => {
+dropzoneOld.addEventListener("dragleave", () => dropzoneOld.classList.remove("drag-over"));
+dropzoneOld.addEventListener("drop", (e) => {
   e.preventDefault();
-  dropzone.classList.remove("drag-over");
+  dropzoneOld.classList.remove("drag-over");
   const file = e.dataTransfer.files[0];
-  if (file) handleFile(file);
+  if (file) handleOldFile(file);
 });
-fileInput.addEventListener("change", () => {
-  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+dropzoneOld.addEventListener("click", () => fileInputOld.click());
+fileInputOld.addEventListener("change", () => {
+  if (fileInputOld.files[0]) handleOldFile(fileInputOld.files[0]);
+});
+
+// Event untuk upload file baru
+const dropzoneNew = document.getElementById("dropzoneNew");
+const fileInputNew = document.getElementById("fileInputNew");
+
+dropzoneNew.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropzoneNew.classList.add("drag-over");
+});
+dropzoneNew.addEventListener("dragleave", () => dropzoneNew.classList.remove("drag-over"));
+dropzoneNew.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzoneNew.classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file) handleNewFile(file);
+});
+dropzoneNew.addEventListener("click", () => fileInputNew.click());
+fileInputNew.addEventListener("change", () => {
+  if (fileInputNew.files[0]) handleNewFile(fileInputNew.files[0]);
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -51,108 +73,116 @@ let state = {
   unfollPage: 0,
   PAGE_SIZE: 50,
   searchQuery: "",
-  oldFollowing: [],
+  oldData: { following: [], dateMap: new Map() },
+  newData: { following: [], followers: [], dateMap: new Map() },
   unfollowDetected: [],
 };
 
 /* ══════════════════════════════════════════════════════════════
        SECTION 4: ZIP PROCESSING (DENGAN EKSTRAKSI TANGGAL)
     ══════════════════════════════════════════════════════════════ */
-async function handleFile(file) {
-    if (!file.name.toLowerCase().endsWith(".zip")) {
-        showError("File harus berformat .zip — silakan unggah file yang benar.");
-        return;
-    }
-
-    showLoading();
-
-    try {
-        const zip = await JSZip.loadAsync(file);
-
-        const followersSet = new Set();
-        const followingSet = new Set();
-        const followersDateMap = new Map();
-        const followingWithDateMap = new Map();
-        const recentSet = new Set();
-        const blockedSet = new Set();
-
-        for (let [filename, fileData] of Object.entries(zip.files)) {
-            if (!fileData.dir && filename.endsWith(".html")) {
-                const parts = filename.split(/[\\/]/);
-                const justName = parts[parts.length - 1].toLowerCase();
-
-                if (/^followers(_\d+)?\.html$/.test(justName)) {
-                    const htmlContent = await fileData.async("string");
-                    extractFollowersWithDate(htmlContent, followersSet, followersDateMap);
-                } else if (justName === "following.html") {
-                    const htmlContent = await fileData.async("string");
-                    extractFollowingWithDate(htmlContent, followingSet, followingWithDateMap);
-                } else if (justName === "recently_unfollowed_profiles.html") {
-                    extractTableText(await fileData.async("string"), recentSet);
-                } else if (justName === "blocked_profiles.html") {
-                    extractTableText(await fileData.async("string"), blockedSet);
-                }
-            }
-        }
-
-        if (followersSet.size === 0 || followingSet.size === 0) {
-            throw new Error("Data Followers atau Following tidak ditemukan di dalam ZIP.");
-        }
-
-        const followersArr = Array.from(followersSet);
-        const followingArr = Array.from(followingSet);
-
-        // === UNFOLLOW DETECTOR ===
-        // 1. Load data lama
-        const oldData = loadOldFollowing();
-        let unfollowDetected = [];
-        
-        if (oldData && oldData.following && oldData.following.length > 0) {
-            // 2. Deteksi unfollow
-            unfollowDetected = detectUnfollow(oldData.following, followingArr);
-            
-            // 3. Tampilkan info di console
-            console.log(`📊 Data Lama: ${oldData.following.length} following (${new Date(oldData.timestamp).toLocaleString('id')})`);
-            console.log(`📊 Data Baru: ${followingArr.length} following`);
-            console.log(`📊 Unfollow Detected: ${unfollowDetected.length} akun`);
-        } else {
-            console.log('ℹ️ Tidak ada data lama. Ini adalah analisis pertama.');
-        }
-
-        // 4. Simpan data baru sebagai data lama untuk next analysis
-        saveOldFollowing(followingArr);
-        state.unfollowDetected = unfollowDetected;
-        // === END UNFOLLOW DETECTOR ===
-
-        // Gabungkan semua data tanggal
-        const combinedDateMap = new Map();
-        followersDateMap.forEach((date, username) => combinedDateMap.set(username, date));
-        followingWithDateMap.forEach((date, username) => combinedDateMap.set(username, date));
-
-        state.combinedDateMap = combinedDateMap;
-        state.followingWithDate = Array.from(followingWithDateMap.entries()).map(([username, date]) => ({
-            username,
-            date
-        }));
-
-        state.unfoll = followingArr.filter((u) => !followersSet.has(u));
-        state.fans = followersArr.filter((u) => !followingSet.has(u));
-        state.mutualan = followingArr.filter((u) => followersSet.has(u));
-
-        state.recent = Array.from(recentSet);
-        state.blocked = Array.from(blockedSet);
-
-        state.unfollPage = 0;
-        state.searchQuery = "";
-
-        renderResults(followersArr.length, followingArr.length);
-        showResults();
-    } catch (err) {
-        hideLoading();
-        showError(err.message || "Terjadi kesalahan saat memproses file.");
-        console.error(err);
-    }
+// Handle file lama
+async function handleOldFile(file) {
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    showError("File lama harus berformat .zip");
+    return;
+  }
+  
+  document.getElementById("oldFileStatus").textContent = `⏳ Memproses ${file.name}...`;
+  
+  try {
+    oldFileData = await extractDataFromZip(file);
+    document.getElementById("oldFileStatus").textContent = `✅ ${file.name} (${oldFileData.following.length} following)`;
+    document.getElementById("oldFileLabel").innerHTML = `<span class="text-green-500">✅</span> ${file.name}`;
+    checkBothFilesReady();
+  } catch (err) {
+    document.getElementById("oldFileStatus").textContent = `❌ Gagal memproses: ${err.message}`;
+    console.error(err);
+  }
 }
+
+// Handle file baru
+async function handleNewFile(file) {
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    showError("File baru harus berformat .zip");
+    return;
+  }
+  
+  document.getElementById("newFileStatus").textContent = `⏳ Memproses ${file.name}...`;
+  
+  try {
+    newFileData = await extractDataFromZip(file);
+    document.getElementById("newFileStatus").textContent = `✅ ${file.name} (${newFileData.following.length} following)`;
+    document.getElementById("newFileLabel").innerHTML = `<span class="text-green-500">✅</span> ${file.name}`;
+    checkBothFilesReady();
+  } catch (err) {
+    document.getElementById("newFileStatus").textContent = `❌ Gagal memproses: ${err.message}`;
+    console.error(err);
+  }
+}
+
+// Cek apakah kedua file sudah siap
+function checkBothFilesReady() {
+  const btn = document.getElementById("compareBtn");
+  if (oldFileData && newFileData) {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-arrow-right-arrow-left mr-2"></i> Bandingkan Kedua File`;
+  } else {
+    btn.disabled = true;
+  }
+}
+
+// Tombol Bandingkan
+document.getElementById("compareBtn").addEventListener("click", async () => {
+  if (!oldFileData || !newFileData) {
+    showError("Silakan upload kedua file terlebih dahulu!");
+    return;
+  }
+
+  showLoading();
+
+  try {
+    // Deteksi unfollow
+    const unfollowed = compareData(oldFileData, newFileData);
+    
+    // Gabungkan date map dari kedua file
+    const combinedDateMap = new Map();
+    oldFileData.followingWithDateMap.forEach((date, username) => combinedDateMap.set(username, date));
+    newFileData.followingWithDateMap.forEach((date, username) => combinedDateMap.set(username, date));
+    newFileData.followersDateMap.forEach((date, username) => combinedDateMap.set(username, date));
+
+    // Set state
+    state.unfoll = newFileData.following.filter((u) => !newFileData.followers.includes(u));
+    state.fans = newFileData.followers.filter((u) => !newFileData.following.includes(u));
+    state.mutualan = newFileData.following.filter((u) => newFileData.followers.includes(u));
+    state.recent = newFileData.recent;
+    state.blocked = newFileData.blocked;
+    state.combinedDateMap = combinedDateMap;
+    state.unfollowDetected = unfollowed;
+    
+    // Simpan data baru sebagai old untuk next time
+    state.oldData = oldFileData;
+    state.newData = newFileData;
+
+    state.unfollPage = 0;
+    state.searchQuery = "";
+
+    renderResults(newFileData.followers.length, newFileData.following.length);
+    showResults();
+    
+    // Tampilkan notifikasi jumlah unfollow
+    if (unfollowed.length > 0) {
+      showError(`🔍 Ditemukan ${unfollowed.length} akun yang unfollow! Cek tab "Unfollow Detector"`);
+    } else {
+      showError(`✅ Tidak ada yang unfollow! Semua aman.`);
+    }
+    
+  } catch (err) {
+    hideLoading();
+    showError(err.message || "Terjadi kesalahan saat membandingkan data.");
+    console.error(err);
+  }
+});
 
 /**
  * Ekstrak username dan tanggal dari following.html
@@ -275,6 +305,57 @@ function extractTableText(htmlString, targetSet) {
       targetSet.add(username);
     }
   }
+}
+
+// Ekstrak data dari file ZIP
+async function extractDataFromZip(file) {
+  const zip = await JSZip.loadAsync(file);
+  
+  const followersSet = new Set();
+  const followingSet = new Set();
+  const followersDateMap = new Map();
+  const followingWithDateMap = new Map();
+  const recentSet = new Set();
+  const blockedSet = new Set();
+
+  for (let [filename, fileData] of Object.entries(zip.files)) {
+    if (!fileData.dir && filename.endsWith(".html")) {
+      const parts = filename.split(/[\\/]/);
+      const justName = parts[parts.length - 1].toLowerCase();
+
+      if (/^followers(_\d+)?\.html$/.test(justName)) {
+        const htmlContent = await fileData.async("string");
+        extractFollowersWithDate(htmlContent, followersSet, followersDateMap);
+      } else if (justName === "following.html") {
+        const htmlContent = await fileData.async("string");
+        extractFollowingWithDate(htmlContent, followingSet, followingWithDateMap);
+      } else if (justName === "recently_unfollowed_profiles.html") {
+        extractTableText(await fileData.async("string"), recentSet);
+      } else if (justName === "blocked_profiles.html") {
+        extractTableText(await fileData.async("string"), blockedSet);
+      }
+    }
+  }
+
+  return {
+    followers: Array.from(followersSet),
+    following: Array.from(followingSet),
+    followersDateMap,
+    followingWithDateMap,
+    recent: Array.from(recentSet),
+    blocked: Array.from(blockedSet),
+  };
+}
+
+// Fungsi untuk membandingkan dua data
+function compareData(oldData, newData) {
+  const oldFollowingSet = new Set(oldData.following);
+  const newFollowingSet = new Set(newData.following);
+  
+  // Cari yang ada di old tapi tidak ada di new
+  const unfollowed = oldData.following.filter(u => !newFollowingSet.has(u));
+  
+  return unfollowed;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -610,44 +691,4 @@ function escapeHtml(str) {
 
 function cssId(username) {
   return username.replace(/[^a-zA-Z0-9_-]/g, "_");
-}
-
-/* ══════════════════════════════════════════════════════════════
-       SECTION 9: UNFOLLOW DETECTOR (Data Lama vs Data Baru)
-    ══════════════════════════════════════════════════════════════ */
-
-// Simpan data following ke localStorage
-function saveOldFollowing(followingList) {
-  try {
-    const dataToSave = {
-      timestamp: new Date().toISOString(),
-      following: followingList,
-      count: followingList.length
-    };
-    localStorage.setItem('ig_old_following', JSON.stringify(dataToSave));
-    return true;
-  } catch (e) {
-    console.error('Gagal menyimpan data lama:', e);
-    return false;
-  }
-}
-
-// Ambil data following dari localStorage
-function loadOldFollowing() {
-  try {
-    const raw = localStorage.getItem('ig_old_following');
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    return data;
-  } catch (e) {
-    console.error('Gagal memuat data lama:', e);
-    return null;
-  }
-}
-
-// Deteksi unfollow dengan membandingkan data lama dan baru
-function detectUnfollow(oldList, newList) {
-  if (!oldList || oldList.length === 0) return [];
-  const newSet = new Set(newList);
-  return oldList.filter(username => !newSet.has(username));
 }
