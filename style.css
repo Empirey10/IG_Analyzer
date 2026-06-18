@@ -1,0 +1,259 @@
+/* ─── CSS CUSTOM PROPERTIES ─── */
+    :root {
+      --bg-page: #FAFAFA;
+      --bg-card: #FFFFFF;
+      --bg-muted: #F3F4F6;
+      --text-primary: #111827;
+      --text-muted: #6B7280;
+      --border: #E5E7EB;
+      --ring-shadow: rgba(131, 58, 180, 0.15);
+    }
+
+    .dark {
+      --bg-page: #0F0F11;
+      --bg-card: #1A1A1F;
+      --bg-muted: #24242C;
+      --text-primary: #F9FAFB;
+      --text-muted: #9CA3AF;
+      --border: #2D2D38;
+      --ring-shadow: rgba(247, 119, 55, 0.15);
+    }
+
+    /* ─── BASE ─── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      transition: background-color 0.35s ease, color 0.35s ease;
+      min-height: 100vh;
+    }
+
+    /* ─── GRADIENT TEXT (signature accent) ─── */
+    .grad-text {
+      background: linear-gradient(135deg, #833AB4 0%, #E1306C 50%, #F77737 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .grad-bg {
+      background: linear-gradient(135deg, #833AB4 0%, #E1306C 50%, #F77737 100%);
+    }
+
+    /* ─── CARD ─── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: background-color 0.35s ease, border-color 0.35s ease;
+    }
+
+    .card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--ring-shadow);
+    }
+
+    /* ─── UPLOAD ZONE ─── */
+    #dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+      cursor: pointer;
+    }
+
+    #dropzone.drag-over {
+      border-color: #833AB4;
+      background: rgba(131, 58, 180, 0.04);
+    }
+
+    /* ─── PRIVACY BADGE ─── */
+    .privacy-badge {
+      animation: pulseBadge 2.5s ease-in-out infinite;
+      border-radius: 9999px;
+    }
+
+    /* ─── DONUT CHART (signature element) ─── */
+    .donut-ring {
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    .donut-segment {
+      transition: stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── TOGGLE SWITCH ─── */
+    .toggle-track {
+      width: 44px;
+      height: 24px;
+      background: var(--bg-muted);
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .dark .toggle-track {
+      background: #2D2D38;
+    }
+
+    .toggle-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      background: #833AB4;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .dark .toggle-thumb {
+      left: 23px;
+      background: #F77737;
+    }
+
+    /* ─── TABLE ─── */
+    .tbl-row {
+      border-bottom: 1px solid var(--border);
+      transition: background-color 0.15s ease;
+    }
+
+    .tbl-row:hover {
+      background: var(--bg-muted);
+    }
+
+    .tbl-row:last-child {
+      border-bottom: none;
+    }
+
+    /* ─── TIER BADGES ─── */
+    .badge-nano {
+      background: #EEF2FF;
+      color: #4338CA;
+    }
+
+    .badge-micro {
+      background: #FEF9C3;
+      color: #854D0E;
+    }
+
+    .badge-macro {
+      background: #FCE7F3;
+      color: #9D174D;
+    }
+
+    .dark .badge-nano {
+      background: #1E1B4B;
+      color: #A5B4FC;
+    }
+
+    .dark .badge-micro {
+      background: #3B2F00;
+      color: #FDE68A;
+    }
+
+    .dark .badge-macro {
+      background: #4A0022;
+      color: #F9A8D4;
+    }
+
+    /* ─── SKELETON LOADER ─── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-muted) 25%, var(--border) 50%, var(--bg-muted) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* ─── TAB ACTIVE ─── */
+    .tab-btn.active {
+      border-bottom: 2px solid #833AB4;
+      color: #833AB4;
+    }
+
+    .dark .tab-btn.active {
+      border-bottom-color: #F77737;
+      color: #F77737;
+    }
+
+    /* ─── FADE UP UTILITY ─── */
+    .fade-up {
+      animation: fadeUp 0.5s ease both;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* ─── RESPONSIVE TABLE SCROLL ─── */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    /* ─── PROGRESS BAR ─── */
+    .prog-bar {
+      height: 6px;
+      border-radius: 99px;
+      background: var(--bg-muted);
+      overflow: hidden;
+    }
+
+    .prog-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── MINI LOADER FOR REAL API ─── */
+    .mini-spinner {
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
