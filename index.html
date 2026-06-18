@@ -102,41 +102,72 @@
       </p>
     </div>
 
+    <!-- UPLOAD SECTION - 2 FILE -->
     <div id="uploadSection" class="card max-w-2xl mx-auto p-6 sm:p-8 mb-10 fade-up" style="animation-delay:0.1s">
-
-      <div id="dropzone" class="p-10 text-center mb-4" onclick="document.getElementById('fileInput').click()">
-        <div class="mb-4">
-          <div class="w-16 h-16 grad-bg rounded-2xl mx-auto flex items-center justify-center mb-3 shadow-lg">
-            <i class="fa-solid fa-file-zipper text-white text-2xl"></i>
+    
+      <!-- File Lama -->
+      <div class="mb-6">
+        <label class="text-sm font-semibold block mb-2" style="color:var(--text-primary)">
+          <i class="fa-regular fa-clock mr-2 text-amber-500"></i>File Lama (Baseline)
+        </label>
+        <div id="dropzoneOld" class="p-6 text-center rounded-xl border-2 border-dashed transition-all cursor-pointer"
+          style="border-color:var(--border);background:var(--bg-muted)">
+          <div class="flex items-center justify-center gap-3">
+            <i class="fa-solid fa-file-zipper text-2xl text-amber-500"></i>
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)" id="oldFileLabel">
+                <span class="text-amber-500">📂</span> Klik atau drag file ZIP lama di sini
+              </p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)" id="oldFileStatus">Belum ada file</p>
+            </div>
           </div>
-          <p class="font-display font-semibold text-base" style="color:var(--text-primary)">
-            Drag & Drop file ZIP di sini
-          </p>
-          <p class="text-sm mt-1" style="color:var(--text-muted)">atau klik untuk memilih file</p>
+          <input type="file" id="fileInputOld" accept=".zip" class="hidden" />
         </div>
-        <p class="text-xs px-4 py-2 rounded-lg inline-block" style="background:var(--bg-muted);color:var(--text-muted)">
-          <i class="fa-solid fa-lock mr-1 text-green-500"></i>
-          File hanya dibaca oleh browser kamu. Tidak ada upload ke server.
-        </p>
       </div>
-
-      <input type="file" id="fileInput" accept=".zip" class="hidden" />
-
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
-        <div class="rounded-xl p-3 text-center text-sm" style="background:var(--bg-muted)">
-          <p class="text-lg mb-1">⚙️</p>
-          <p class="font-medium text-xs" style="color:var(--text-primary)">Buka Instagram</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Pengaturan → Aktivitas → Unduh Data</p>
+    
+      <!-- File Baru -->
+      <div class="mb-6">
+        <label class="text-sm font-semibold block mb-2" style="color:var(--text-primary)">
+          <i class="fa-regular fa-clock mr-2 text-green-500"></i>File Baru (Terbaru)
+        </label>
+        <div id="dropzoneNew" class="p-6 text-center rounded-xl border-2 border-dashed transition-all cursor-pointer"
+          style="border-color:var(--border);background:var(--bg-muted)">
+          <div class="flex items-center justify-center gap-3">
+            <i class="fa-solid fa-file-zipper text-2xl text-green-500"></i>
+            <div>
+              <p class="text-sm font-medium" style="color:var(--text-primary)" id="newFileLabel">
+                <span class="text-green-500">📂</span> Klik atau drag file ZIP baru di sini
+              </p>
+              <p class="text-xs mt-0.5" style="color:var(--text-muted)" id="newFileStatus">Belum ada file</p>
+            </div>
+          </div>
+          <input type="file" id="fileInputNew" accept=".zip" class="hidden" />
         </div>
+      </div>
+    
+      <!-- Tombol Proses -->
+      <button id="compareBtn"
+        class="w-full py-3 rounded-xl font-semibold text-white grad-bg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled>
+        <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i>
+        Bandingkan Kedua File
+      </button>
+    
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
         <div class="rounded-xl p-3 text-center text-sm" style="background:var(--bg-muted)">
           <p class="text-lg mb-1">📦</p>
-          <p class="font-medium text-xs" style="color:var(--text-primary)">Download ZIP</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Format: HTML · Unduh & simpan ke device</p>
+          <p class="font-medium text-xs" style="color:var(--text-primary)">File Lama</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Data following sebelumnya</p>
         </div>
         <div class="rounded-xl p-3 text-center text-sm" style="background:var(--bg-muted)">
-          <p class="text-lg mb-1">🔍</p>
-          <p class="font-medium text-xs" style="color:var(--text-primary)">Upload di Sini</p>
-          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Analisis instan · Privat 100%</p>
+          <p class="text-lg mb-1">🔄</p>
+          <p class="font-medium text-xs" style="color:var(--text-primary)">Bandingkan</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Temukan yang unfollow</p>
+        </div>
+        <div class="rounded-xl p-3 text-center text-sm" style="background:var(--bg-muted)">
+          <p class="text-lg mb-1">📊</p>
+          <p class="font-medium text-xs" style="color:var(--text-primary)">File Baru</p>
+          <p class="text-xs mt-0.5" style="color:var(--text-muted)">Data following terbaru</p>
         </div>
       </div>
     </div>
