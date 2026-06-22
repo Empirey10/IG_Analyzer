@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IG Analyzer — Instagram Profile Analyzer</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css">
+
+  <script>
+    // Tailwind config — extend with custom tokens
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"DM Sans"', 'sans-serif'],
+            body: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              grape: '#833AB4',
+              rose: '#E1306C',
+              coral: '#F77737',
+              light: '#FAFAFA',
+            }
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.5s ease forwards',
+            'spin-slow': 'spin 3s linear infinite',
+            'pulse-badge': 'pulseBadge 2.5s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeUp: {
+              '0%': { opacity: '0', transform: 'translateY(16px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            pulseBadge: {
+              '0%, 100%': { boxShadow: '0 0 0 0 rgba(131,58,180,0.25)' },
+              '50%': { boxShadow: '0 0 0 8px rgba(131,58,180,0)' },
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+
+<body class="antialiased">
+
+  <header class="app-header sticky top-0 z-50 border-b" style="border-color:var(--border);">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="w-7 h-7 grad-bg rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fa-brands fa-instagram text-white text-sm"></i>
+        </div>
+        <span class="font-display font-700 text-base tracking-tight grad-text hidden xs:inline">IG Analyzer</span>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+
+        <button id="headerResetBtn" class="btn-pill hidden">
+          <i class="fa-solid fa-rotate-right text-xs"></i>
+          <span class="hidden sm:inline">Bandingkan Lagi</span>
+        </button>
+
+        <div class="privacy-badge hidden md:flex items-center gap-1.5 px-3 py-1 card text-xs font-medium"
+          style="color:var(--text-muted)">
+          <i class="fa-solid fa-shield-halved text-green-500 text-[11px]"></i>
+          <span>100% Local · Aman</span>
+        </div>
+
+        <button id="themeToggle" aria-label="Toggle dark mode" class="flex items-center gap-2 text-xs"
+          style="color:var(--text-muted)">
+          <i class="fa-solid fa-sun text-amber-400 text-sm"></i>
+          <div class="toggle-track">
+            <div class="toggle-thumb"></div>
+          </div>
+          <i class="fa-solid fa-moon text-indigo-400 text-sm"></i>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+
+    <div class="text-center mb-8 fade-up">
+      <p class="section-eyebrow justify-center mb-3">
+        Client-Side · Privat · Gratis
+      </p>
+      <h1 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-3">
+        Analisis Profil<br />
+        <span class="grad-text">Instagram Kamu</span>
+      </h1>
+      <p class="text-sm sm:text-base max-w-md mx-auto leading-relaxed" style="color:var(--text-muted)">
+        Unggah file ZIP dari "Download Your Information" Instagram. Data diproses
+        sepenuhnya di browser — tidak ada yang dikirim ke server manapun.
+      </p>
+    </div>
+
+    <!-- UPLOAD SECTION - 2 FILE + VIDEO TUTORIAL -->
+    <div id="uploadSection" class="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-5xl mx-auto mb-10 items-start">
+
+      <div class="card p-6 sm:p-8 fade-up lg:col-span-3" style="animation-delay:0.1s">
+
+        <!-- File Lama -->
+        <div class="mb-5">
+          <label class="text-sm font-semibold flex items-center mb-2" style="color:var(--text-primary)">
+            <span class="icon-badge icon-badge--amber icon-badge--sm mr-2"><i class="fa-regular fa-clock"></i></span>
+            File Lama (Baseline)
+          </label>
+          <div id="dropzoneOld" class="dropzone p-5 text-center">
+            <div class="flex items-center justify-center gap-3">
+              <div class="dropzone-icon icon-badge--amber">
+                <i class="fa-solid fa-file-zipper text-lg"></i>
+              </div>
+              <div class="text-left">
+                <p class="text-sm font-medium" style="color:var(--text-primary)" id="oldFileLabel">
+                  Klik atau drag file ZIP lama di sini
+                </p>
+                <p class="text-xs mt-0.5" style="color:var(--text-muted)" id="oldFileStatus">Belum ada file</p>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="fileInputOld" accept=".zip" class="hidden" />
+        </div>
+
+        <!-- File Baru -->
+        <div class="mb-6">
+          <label class="text-sm font-semibold flex items-center mb-2" style="color:var(--text-primary)">
+            <span class="icon-badge icon-badge--green icon-badge--sm mr-2"><i class="fa-regular fa-clock"></i></span>
+            File Baru (Terbaru)
+          </label>
+          <div id="dropzoneNew" class="dropzone p-5 text-center">
+            <div class="flex items-center justify-center gap-3">
+              <div class="dropzone-icon icon-badge--green">
+                <i class="fa-solid fa-file-zipper text-lg"></i>
+              </div>
+              <div class="text-left">
+                <p class="text-sm font-medium" style="color:var(--text-primary)" id="newFileLabel">
+                  Klik atau drag file ZIP baru di sini
+                </p>
+                <p class="text-xs mt-0.5" style="color:var(--text-muted)" id="newFileStatus">Belum ada file</p>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="fileInputNew" accept=".zip" class="hidden" />
+        </div>
+
+        <!-- Tombol Proses -->
+        <button id="compareBtn"
+          class="w-full py-3 rounded-xl font-semibold text-white grad-bg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled>
+          <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i>
+          Bandingkan Kedua File
+        </button>
+
+        <div class="grid grid-cols-3 gap-3 mt-4">
+          <div class="card-soft p-3 text-center">
+            <p class="text-lg mb-1">📦</p>
+            <p class="font-medium text-xs" style="color:var(--text-primary)">File Lama</p>
+            <p class="text-[11px] mt-0.5" style="color:var(--text-muted)">Data following sebelumnya</p>
+          </div>
+          <div class="card-soft p-3 text-center">
+            <p class="text-lg mb-1">🔄</p>
+            <p class="font-medium text-xs" style="color:var(--text-primary)">Bandingkan</p>
+            <p class="text-[11px] mt-0.5" style="color:var(--text-muted)">Temukan yang unfollow</p>
+          </div>
+          <div class="card-soft p-3 text-center">
+            <p class="text-lg mb-1">📊</p>
+            <p class="font-medium text-xs" style="color:var(--text-primary)">File Baru</p>
+            <p class="text-[11px] mt-0.5" style="color:var(--text-muted)">Data following terbaru</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIDEO TUTORIAL CARD -->
+      <div class="card p-5 fade-up lg:col-span-2" style="animation-delay:0.18s">
+        <p class="text-sm font-semibold flex items-center mb-3" style="color:var(--text-primary)">
+          <span class="icon-badge icon-badge--brand icon-badge--sm mr-2"><i class="fa-solid fa-clapperboard"></i></span>
+          Video Tutorial
+        </p>
+
+        <div id="tutorialVideoFrame" class="video-frame">
+          <!-- Jika ingin menampilkan video asli, isi TUTORIAL_VIDEO_EMBED_URL di app.js -->
+          <div id="tutorialVideoPlaceholder" class="video-placeholder">
+            <div class="video-play-btn">
+              <i class="fa-solid fa-play ml-0.5"></i>
+            </div>
+            <p class="text-sm font-semibold">Cara Export &amp; Upload Data IG</p>
+            <p class="text-xs opacity-80 max-w-[220px]">Tonton panduan singkat sebelum mengunggah file ZIP kamu</p>
+          </div>
+          <span class="video-duration-tag"><i class="fa-regular fa-clock mr-1"></i>3 menit</span>
+        </div>
+
+        <p class="text-xs mt-3 leading-relaxed" style="color:var(--text-muted)">
+          Belum tahu cara unduh data Instagram? Tonton tutorialnya di sini sebelum mulai membandingkan.
+        </p>
+      </div>
+
+    </div>
+
+    <div id="loadingSection" class="hidden max-w-2xl mx-auto text-center py-12">
+      <div class="w-16 h-16 mx-auto mb-4 relative">
+        <div class="w-16 h-16 rounded-full grad-bg opacity-20 absolute inset-0"></div>
+        <div
+          class="w-16 h-16 rounded-full border-4 border-transparent border-t-purple-600 animate-spin absolute inset-0">
+        </div>
+      </div>
+      <p class="font-display font-semibold text-base" style="color:var(--text-primary)">Memproses data ZIP...</p>
+      <p class="text-sm mt-1" style="color:var(--text-muted)">Mengekstrak followers & following</p>
+    </div>
+
+    <div id="errorToast" class="hidden max-w-2xl mx-auto mb-6">
+      <div class="flex items-center gap-3 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 dark-error-card">
+        <i class="fa-solid fa-circle-exclamation text-red-500 flex-shrink-0"></i>
+        <p id="errorMsg" class="text-sm font-medium"></p>
+        <button onclick="hideError()" class="ml-auto text-red-400 hover:text-red-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="resultsSection" class="hidden fade-up">
+
+      <!-- ═══ COMPARE OVERVIEW ═══ -->
+      <div class="card p-5 sm:p-6 mb-6">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="icon-badge icon-badge--lg icon-badge--brand"><i class="fa-solid fa-chart-simple"></i></span>
+          <div>
+            <p class="font-display font-bold text-lg leading-tight" style="color:var(--text-primary)">Compare Overview
+            </p>
+            <p class="text-xs" style="color:var(--text-muted)">Perbandingan detail data Instagram kamu</p>
+          </div>
+        </div>
+
+        <div class="table-wrap rounded-xl" style="border:1px solid var(--border)">
+          <table class="co-table">
+            <thead>
+              <tr>
+                <th>Metrik</th>
+                <th>Data Lama</th>
+                <th>Data Baru</th>
+                <th>Perubahan</th>
+                <th>Perubahan (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="co-metric-label">
+                    <span class="icon-badge icon-badge--sm icon-badge--purple"><i class="fa-solid fa-users"></i></span>
+                    Followers
+                  </span>
+                </td>
+                <td class="co-num" id="co-old-followers">0</td>
+                <td class="co-num" id="co-new-followers">0</td>
+                <td><span class="co-change" id="co-change-followers">—</span></td>
+                <td><span class="co-change" id="co-changepct-followers">—</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="co-metric-label">
+                    <span class="icon-badge icon-badge--sm icon-badge--blue"><i
+                        class="fa-solid fa-user-group"></i></span>
+                    Following
+                  </span>
+                </td>
+                <td class="co-num" id="co-old-following">0</td>
+                <td class="co-num" id="co-new-following">0</td>
+                <td><span class="co-change" id="co-change-following">—</span></td>
+                <td><span class="co-change" id="co-changepct-following">—</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="co-metric-label">
+                    <span class="icon-badge icon-badge--sm icon-badge--green"><i
+                        class="fa-solid fa-handshake"></i></span>
+                    Mutualan
+                  </span>
+                </td>
+                <td class="co-num" id="co-old-mutualan">0</td>
+                <td class="co-num" id="co-new-mutualan">0</td>
+                <td><span class="co-change" id="co-change-mutualan">—</span></td>
+                <td><span class="co-change" id="co-changepct-mutualan">—</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="co-metric-label">
+                    <span class="icon-badge icon-badge--sm icon-badge--red"><i
+                        class="fa-solid fa-user-xmark"></i></span>
+                    Unfollow (Tidak Follow Balik)
+                  </span>
+                </td>
+                <td class="co-num" id="co-old-unfoll">0</td>
+                <td class="co-num" id="co-new-unfoll">0</td>
+                <td><span class="co-change" id="co-change-unfoll">—</span></td>
+                <td><span class="co-change" id="co-changepct-unfoll">—</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ 4 STAT COMPARE CARDS ═══ -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+        <div class="card card-hover stat-compare-card">
+          <div class="stat-compare-head">
+            <span class="icon-badge icon-badge--purple"><i class="fa-solid fa-users"></i></span>
+            <p class="stat-compare-label">Followers</p>
+          </div>
+          <div class="stat-compare-row">
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Lama</span>
+              <span class="stat-compare-num" id="oldStatFollowers">0</span>
+            </div>
+            <div class="stat-compare-divider"></div>
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Baru</span>
+              <span class="stat-compare-num is-new txt-purple" id="statFollowers">0</span>
+            </div>
+          </div>
+          <div class="stat-compare-delta" id="deltaFollowers">—</div>
+        </div>
+
+        <div class="card card-hover stat-compare-card">
+          <div class="stat-compare-head">
+            <span class="icon-badge icon-badge--blue"><i class="fa-solid fa-user-group"></i></span>
+            <p class="stat-compare-label">Following</p>
+          </div>
+          <div class="stat-compare-row">
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Lama</span>
+              <span class="stat-compare-num" id="oldStatFollowing">0</span>
+            </div>
+            <div class="stat-compare-divider"></div>
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Baru</span>
+              <span class="stat-compare-num is-new txt-blue" id="statFollowing">0</span>
+            </div>
+          </div>
+          <div class="stat-compare-delta" id="deltaFollowing">—</div>
+        </div>
+
+        <div class="card card-hover stat-compare-card">
+          <div class="stat-compare-head">
+            <span class="icon-badge icon-badge--green"><i class="fa-solid fa-handshake"></i></span>
+            <p class="stat-compare-label">Mutualan</p>
+          </div>
+          <div class="stat-compare-row">
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Lama</span>
+              <span class="stat-compare-num" id="oldStatMutualan">0</span>
+            </div>
+            <div class="stat-compare-divider"></div>
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Baru</span>
+              <span class="stat-compare-num is-new txt-green" id="statMutualan">0</span>
+            </div>
+          </div>
+          <div class="stat-compare-delta" id="deltaMutualan">—</div>
+        </div>
+
+        <div class="card card-hover stat-compare-card">
+          <div class="stat-compare-head">
+            <span class="icon-badge icon-badge--red"><i class="fa-solid fa-user-xmark"></i></span>
+            <div>
+              <p class="stat-compare-label leading-tight">Unfollow</p>
+              <p class="stat-compare-sub">Tidak Follow Balik</p>
+            </div>
+          </div>
+          <div class="stat-compare-row">
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Lama</span>
+              <span class="stat-compare-num" id="oldStatUnfoll">0</span>
+            </div>
+            <div class="stat-compare-divider"></div>
+            <div class="stat-compare-col">
+              <span class="stat-compare-kicker">Data Baru</span>
+              <span class="stat-compare-num is-new txt-red" id="statUnfoll">0</span>
+            </div>
+          </div>
+          <div class="stat-compare-delta" id="deltaUnfoll">—</div>
+        </div>
+
+      </div>
+
+      <!-- ═══ DONUT + SNAPSHOT COMPARISON ═══ -->
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+
+        <div class="card p-6 flex flex-col items-center justify-center lg:col-span-2">
+          <p class="font-display font-semibold text-sm mb-4 self-start" style="color:var(--text-primary)">Instagram
+            Growth Analytics</p>
+          <div class="relative w-44 h-44">
+            <svg viewBox="0 0 120 120" class="w-full h-full donut-ring">
+              <circle cx="60" cy="60" r="48" fill="none" stroke-width="14" style="stroke:var(--bg-muted)" />
+              <circle id="donutUnfoll" cx="60" cy="60" r="48" fill="none" stroke-width="14" stroke="#DC2626"
+                stroke-dasharray="0 301.59" stroke-linecap="round" class="donut-segment" />
+              <circle id="donutFans" cx="60" cy="60" r="48" fill="none" stroke-width="14" stroke="#DB2777"
+                stroke-dasharray="0 301.59" stroke-linecap="round" class="donut-segment" />
+              <circle id="donutMutualan" cx="60" cy="60" r="48" fill="none" stroke-width="14" stroke="#15A35A"
+                stroke-dasharray="0 301.59" stroke-linecap="round" class="donut-segment" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <p id="donutCenter" class="font-display font-bold text-xl grad-text">0</p>
+              <p class="text-xs" style="color:var(--text-muted)">Total</p>
+            </div>
+          </div>
+
+          <div class="w-full mt-5 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#15A35A"></span>
+                <span style="color:var(--text-muted)">Mutualan</span>
+              </span>
+              <span id="legendMutualan" class="font-semibold" style="color:var(--text-primary)">0%</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#DB2777"></span>
+                <span style="color:var(--text-muted)">Fans</span>
+              </span>
+              <span id="legendFans" class="font-semibold" style="color:var(--text-primary)">0%</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#DC2626"></span>
+                <span style="color:var(--text-muted)">Unfoll</span>
+              </span>
+              <span id="legendUnfoll" class="font-semibold" style="color:var(--text-primary)">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6 lg:col-span-3 relative">
+          <p class="font-display font-semibold text-sm mb-4 flex items-center gap-2" style="color:var(--text-primary)">
+            <i class="fa-solid fa-calendar-days" style="color:var(--text-muted)"></i>
+            Snapshot Comparison
+          </p>
+
+          <div class="snapshot-grid">
+            <span class="vs-badge">VS</span>
+
+            <div class="snapshot-col">
+              <div class="snapshot-col-head">
+                <p class="txt-purple">Data Lama (Previous)</p>
+                <p class="snapshot-col-sub" id="snap-old-file"><i class="fa-regular fa-file-zipper"></i> —</p>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-users txt-purple text-xs"></i>Followers</span>
+                <span class="snapshot-row-value" id="snap-old-followers">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-user-group txt-blue text-xs"></i>Following</span>
+                <span class="snapshot-row-value" id="snap-old-following">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-handshake txt-green text-xs"></i>Mutualan</span>
+                <span class="snapshot-row-value" id="snap-old-mutualan">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-user-xmark txt-red text-xs"></i>Unfollow</span>
+                <span class="snapshot-row-value" id="snap-old-unfoll">0</span>
+              </div>
+            </div>
+
+            <div class="snapshot-col">
+              <div class="snapshot-col-head">
+                <p class="txt-blue">Data Baru (Current)</p>
+                <p class="snapshot-col-sub" id="snap-new-file"><i class="fa-regular fa-file-zipper"></i> —</p>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-users txt-purple text-xs"></i>Followers</span>
+                <span class="snapshot-row-value" id="snap-new-followers">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-user-group txt-blue text-xs"></i>Following</span>
+                <span class="snapshot-row-value" id="snap-new-following">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-handshake txt-green text-xs"></i>Mutualan</span>
+                <span class="snapshot-row-value" id="snap-new-mutualan">0</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-row-label"><i class="fa-solid fa-user-xmark txt-red text-xs"></i>Unfollow</span>
+                <span class="snapshot-row-value" id="snap-new-unfoll">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ ENGAGEMENT RATIO ═══ -->
+      <div class="card p-6 mb-6">
+        <p class="font-display font-semibold text-sm mb-5" style="color:var(--text-primary)">Rasio Engagement (Data
+          Terbaru)</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium flex items-center gap-2" style="color:var(--text-primary)">
+                <span class="icon-badge icon-badge--sm icon-badge--red"><i
+                    class="fa-solid fa-user-minus"></i></span>Unfoll
+              </span>
+              <span id="ratioUnfoll" class="text-sm font-semibold txt-red">0%</span>
+            </div>
+            <div class="prog-bar">
+              <div id="progUnfoll" class="prog-fill" style="background:var(--clr-red);width:0%"></div>
+            </div>
+            <p class="text-xs mt-1.5" style="color:var(--text-muted)">Akun yang kamu follow tapi tidak balik follow</p>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium flex items-center gap-2" style="color:var(--text-primary)">
+                <span class="icon-badge icon-badge--sm icon-badge--rose"><i class="fa-solid fa-heart"></i></span>Fans
+              </span>
+              <span id="ratioFans" class="text-sm font-semibold txt-rose">0%</span>
+            </div>
+            <div class="prog-bar">
+              <div id="progFans" class="prog-fill" style="background:var(--clr-rose);width:0%"></div>
+            </div>
+            <p class="text-xs mt-1.5" style="color:var(--text-muted)">Akun yang follow kamu tapi belum kamu follow balik
+            </p>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium flex items-center gap-2" style="color:var(--text-primary)">
+                <span class="icon-badge icon-badge--sm icon-badge--green"><i
+                    class="fa-solid fa-handshake"></i></span>Mutualan
+              </span>
+              <span id="ratioMutualan" class="text-sm font-semibold txt-green">0%</span>
+            </div>
+            <div class="prog-bar">
+              <div id="progMutualan" class="prog-fill" style="background:var(--clr-green);width:0%"></div>
+            </div>
+            <p class="text-xs mt-1.5" style="color:var(--text-muted)">Akun yang saling mengikuti satu sama lain</p>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 rounded-xl card-soft flex items-baseline gap-2">
+          <p class="text-xs font-medium" style="color:var(--text-muted)">Mutual Rate Score</p>
+          <p id="mutualScore" class="font-display font-bold text-2xl grad-text">—</p>
+          <p class="text-xs" style="color:var(--text-muted)">dari total jaringan kamu yang mutualan</p>
+        </div>
+      </div>
+
+      <!-- ═══ TABS + TABLE ═══ -->
+      <div class="card">
+
+        <div class="flex border-b overflow-x-auto" style="border-color:var(--border)">
+          <button class="tab-btn active px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="unfoll">
+            <i class="fa-solid fa-user-minus mr-1.5"></i>
+            Unfoll <span id="badgeUnfoll" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
+          </button>
+          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="fans">
+            <i class="fa-solid fa-heart mr-1.5"></i>
+            Fans <span id="badgeFans" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
+          </button>
+          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="mutualan">
+            <i class="fa-solid fa-handshake mr-1.5"></i>
+            Mutualan <span id="badgeMutualan" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
+          </button>
+          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="recent">
+            <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>
+            My-unfollow <span id="badgeRecent" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
+          </button>
+          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="blocked">
+            <i class="fa-solid fa-ban mr-1.5 txt-red"></i>
+            Diblokir <span id="badgeBlocked" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-danger">0</span>
+          </button>
+          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="unfollow_detector">
+            <i class="fa-solid fa-user-slash mr-1.5 txt-red"></i>
+            Unfollow Detector
+            <span id="badgeUnfollowDetector" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-danger">0</span>
+          </button>
+        </div>
+
+        <div class="p-4 border-b flex flex-col sm:flex-row gap-3" style="border-color:var(--border)">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs"
+              style="color:var(--text-muted)"></i>
+            <input id="searchInput" type="text" placeholder="Cari username..."
+              class="w-full pl-8 pr-4 py-2 text-sm rounded-lg border outline-none"
+              style="background:var(--bg-card-soft);border-color:var(--border);color:var(--text-primary);" />
+          </div>
+        </div>
+
+        <div id="tableContainer" class="table-wrap">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wide"
+                style="background:var(--bg-muted);color:var(--text-muted)">
+                <th class="px-5 py-3 font-semibold w-10">#</th>
+                <th class="px-5 py-3 font-semibold">Username</th>
+                <th class="px-5 py-3 font-semibold hidden md:table-cell">Status Akun</th>
+                <th class="px-5 py-3 font-semibold hidden sm:table-cell">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+
+          <div id="emptyState" class="hidden py-16 text-center">
+            <div class="text-4xl mb-3">🔍</div>
+            <p class="font-medium text-sm" style="color:var(--text-primary)">Tidak ada akun ditemukan</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)">Coba ubah filter atau kata kunci pencarian</p>
+          </div>
+        </div>
+
+        <div id="loadMoreWrap" class="hidden p-4 text-center border-t" style="border-color:var(--border)">
+          <button id="loadMoreBtn"
+            class="px-6 py-2 rounded-lg text-sm font-medium grad-bg text-white hover:opacity-90 transition-opacity">
+            <i class="fa-solid fa-chevron-down mr-2"></i>
+            Muat 50 Akun Berikutnya
+          </button>
+          <p id="loadMoreInfo" class="text-xs mt-2" style="color:var(--text-muted)"></p>
+        </div>
+
+      </div>
+
+      <div class="mt-6 text-center">
+        <button id="resetBtn" class="btn-pill">
+          <i class="fa-solid fa-rotate-left mr-1"></i>Analisis File Lain
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="border-t mt-16 py-6 text-center text-xs" style="border-color:var(--border);color:var(--text-muted)">
+    <p>
+      <i class="fa-solid fa-shield-halved text-green-500 mr-1"></i>
+      Semua data diproses <strong>100% lokal</strong> di browser kamu · Tidak ada data dikirim ke server manapun
+    </p>
+    <p class="mt-1">IG Analyzer — Built with ❤️ · Client-Side Only</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
