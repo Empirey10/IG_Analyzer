@@ -201,77 +201,117 @@ document.getElementById("compareBtn").addEventListener("click", async () => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-       SECTION 6: EXTRACTOR FUNCTIONS
-    ══════════════════════════════════════════════════════════════ */
-function extractFollowingWithDate(htmlString, targetSet, dateMap) {
-  const pattern = /<h2[^>]*>([^<]+)<\/h2>[\s\S]*?<div>([^<]+)<\/div>/gi;
-  let match;
-  const blacklist = ["explore","p","reel","reels","stories","accounts","directory","about","legal","help"];
-  while ((match = pattern.exec(htmlString)) !== null) {
+       SECTION 6: EXTRACTOR FUNCTIONS (FIXED)
+   ══════════════════════════════════════════════════════════════ */
+function extractUsernameFromLink(href) {
+  if (!href) return null;
+  // Regex universal untuk menangkap username dari url instagram (termasuk variasi dengan _u/)
+  const match = href.match(/instagram\.com\/(?:_u\/)?([^/"'?#]+)/i);
+  if (match && match[1]) {
     let username = match[1].toLowerCase().trim();
-    let date = match[2].trim();
-    if (username && !blacklist.includes(username) && username.length > 0 && !username.includes(" ")) {
+    const blacklist = ["explore","p","reel","reels","stories","accounts","directory","about","legal","help","terms","download","your","information","language","meta","privacy","guidelines"];
+    if (!blacklist.includes(username) && !username.includes(" ")) {
+      return username;
+    }
+  }
+  return null;
+}
+
+function extractFollowingWithDate(htmlString, targetSet, dateMap) {
+  // Menggunakan DOMParser agar parsing HTML jauh lebih akurat dibanding Regex baris per baris
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  const links = doc.querySelectorAll("a[href*='instagram.com']");
+
+  links.forEach(link => {
+    const username = extractUsernameFromLink(link.getAttribute("href"));
+    if (username) {
       targetSet.add(username);
-      if (date && date.length > 0 && !dateMap.has(username)) {
-        dateMap.set(username, date);
+      
+      // Cari teks tanggal di sekitar elemen pembungkus data ini
+      let parentContainer = link.closest("div");
+      if (parentContainer) {
+        const textContent = parentContainer.textContent || "";
+        // Deteksi format nama bulan bahasa Inggris atau Indonesia standar beserta tahunnya
+        const dateMatch = textContent.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Iba|Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des)\s+\d+,\s+\d{4}/i);
+        if (dateMatch) {
+          dateMap.set(username, dateMatch[0]);
+        } else {
+          // Fallback jika struktur berbeda, ambil teks div paling akhir di dalam kontainer
+          const divs = parentContainer.querySelectorAll("div");
+          if (divs.length > 0) {
+            let lastDivText = divs[divs.length - 1].textContent.trim();
+            if (lastDivText && lastDivText !== username && lastDivText.length < 50) {
+              dateMap.set(username, lastDivText);
+            }
+          }
+        }
+      }
+      if (!dateMap.has(username)) {
+        dateMap.set(username, "Tanggal tidak tersedia");
       }
     }
-  }
-  if (dateMap.size === 0) {
-    const linkRegex = /href=["']https?:\/\/(?:www\.)?instagram\.com\/(?:_u\/)?([^/"'?#]+)/gi;
-    let linkMatch;
-    let tempUsernames = [];
-    while ((linkMatch = linkRegex.exec(htmlString)) !== null) {
-      let username = linkMatch[1].toLowerCase().trim();
-      if (username && !blacklist.includes(username)) {
-        tempUsernames.push(username);
-        targetSet.add(username);
-      }
-    }
-    tempUsernames.forEach(u => {
-      if (!dateMap.has(u)) dateMap.set(u, "Tanggal tidak tersedia");
-    });
-  }
+  });
 }
 
 function extractFollowersWithDate(htmlString, targetSet, dateMap) {
-  const regex = /<a[^>]*href="https:\/\/www\.instagram\.com\/([^/"'?#]+)"[^>]*>([^<]+)<\/a>[\s\S]*?<div>([^<]+)<\/div>/gi;
-  let match;
-  const blacklist = ["explore","p","reel","reels","stories","accounts","directory"];
-  while ((match = regex.exec(htmlString)) !== null) {
-    let username = match[1].toLowerCase().trim();
-    let date = match[3].trim();
-    if (username && !blacklist.includes(username) && username.length > 0 && !username.includes(" ")) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  const links = doc.querySelectorAll("a[href*='instagram.com']");
+
+  links.forEach(link => {
+    const username = extractUsernameFromLink(link.getAttribute("href"));
+    if (username) {
       targetSet.add(username);
-      if (date && date.length > 0 && !dateMap.has(username)) {
-        dateMap.set(username, date);
+      
+      let parentContainer = link.closest("div");
+      if (parentContainer) {
+        const divs = parentContainer.querySelectorAll("div");
+        if (divs.length > 0) {
+          let lastDivText = divs[divs.length - 1].textContent.trim();
+          if (lastDivText && lastDivText !== username && lastDivText.length < 50) {
+            dateMap.set(username, lastDivText);
+          }
+        }
+      }
+      if (!dateMap.has(username)) {
+        dateMap.set(username, "Tanggal tidak tersedia");
       }
     }
-  }
+  });
 }
 
 function extractWithRegex(htmlString, targetSet) {
-  const regex = /href=["']https?:\/\/(?:www\.)?instagram\.com\/(?:_u\/)?([^/"'?#]+)/gi;
-  let match;
-  const blacklist = ["explore","p","reel","reels","stories","accounts","directory","about","legal","help","terms","download","your","information","language","meta","privacy","guidelines"];
-  while ((match = regex.exec(htmlString)) !== null) {
-    let username = match[1].toLowerCase().trim();
-    if (username && !blacklist.includes(username)) targetSet.add(username);
-  }
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  const links = doc.querySelectorAll("a[href*='instagram.com']");
+  links.forEach(link => {
+    const username = extractUsernameFromLink(link.getAttribute("href"));
+    if (username) targetSet.add(username);
+  });
 }
 
 function extractTableText(htmlString, targetSet) {
-  const linkRegex = /href=["']https?:\/\/(?:www\.)?instagram\.com\/(?:_u\/)?([^/"'?#]+)/gi;
-  let matchLink;
-  while ((matchLink = linkRegex.exec(htmlString)) !== null) {
-    let username = matchLink[1].toLowerCase().trim();
-    if (username && username !== "instagram.com") targetSet.add(username);
-  }
-  const tdRegex = /(?:Nama pengguna|Username)<\/td><td[^>]*>([^<]+)<\/td>/gi;
-  let matchTd;
-  while ((matchTd = tdRegex.exec(htmlString)) !== null) {
-    let username = matchTd[1].toLowerCase().trim();
-    if (username && !username.includes(" ") && !username.startsWith("http")) targetSet.add(username);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  
+  // Ambil dari link jika ada
+  const links = doc.querySelectorAll("a[href*='instagram.com']");
+  links.forEach(link => {
+    const username = extractUsernameFromLink(link.getAttribute("href"));
+    if (username) targetSet.add(username);
+  });
+
+  // Ambil dari selector tabel teks biasa jika strukturnya berbentuk tabel lama
+  const tds = doc.querySelectorAll("td");
+  for (let i = 0; i < tds.length; i++) {
+    let text = tds[i].textContent.trim();
+    if ((text.toLowerCase() === "nama pengguna" || text.toLowerCase() === "username") && tds[i+1]) {
+      let username = tds[i+1].textContent.toLowerCase().trim();
+      if (username && !username.includes(" ") && !username.startsWith("http")) {
+        targetSet.add(username);
+      }
+    }
   }
 }
 
@@ -288,6 +328,8 @@ async function extractDataFromZip(file) {
     if (!fileData.dir && filename.endsWith(".html")) {
       const parts = filename.split(/[\\/]/);
       const justName = parts[parts.length - 1].toLowerCase();
+      
+      // Menggunakan regex agar file followers_1.html, followers_2.html, dst semuanya terekstraksi penuh
       if (/^followers(_\d+)?\.html$/.test(justName)) {
         const htmlContent = await fileData.async("string");
         extractFollowersWithDate(htmlContent, followersSet, followersDateMap);
