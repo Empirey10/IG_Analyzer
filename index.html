@@ -13,6 +13,14 @@
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@300;400;500;600&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="style.css">
+  <style>
+    .table-wrap,
+    .tab-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+    }
+  </style>
 
   <script>
     // Tailwind config — extend with custom tokens
@@ -184,28 +192,27 @@
       </div>
 
       <!-- VIDEO TUTORIAL CARD -->
-      <div class="card p-5 fade-up lg:col-span-2" style="animation-delay:0.18s">
-        <p class="text-sm font-semibold flex items-center mb-3" style="color:var(--text-primary)">
-          <span class="icon-badge icon-badge--brand icon-badge--sm mr-2"><i class="fa-solid fa-clapperboard"></i></span>
-          Video Tutorial
-        </p>
-
-        <div id="tutorialVideoFrame" class="video-frame">
-          <!-- Jika ingin menampilkan video asli, isi TUTORIAL_VIDEO_EMBED_URL di app.js -->
-          <div id="tutorialVideoPlaceholder" class="video-placeholder">
-            <div class="video-play-btn">
-              <i class="fa-solid fa-play ml-0.5"></i>
-            </div>
-            <p class="text-sm font-semibold">Cara Export &amp; Upload Data IG</p>
-            <p class="text-xs opacity-80 max-w-[220px]">Tonton panduan singkat sebelum mengunggah file ZIP kamu</p>
-          </div>
-          <span class="video-duration-tag"><i class="fa-regular fa-clock mr-1"></i>3 menit</span>
+  <div class="card p-5 fade-up lg:col-span-2" style="animation-delay:0.18s">
+    <p class="text-sm font-semibold flex items-center mb-3" style="color:var(--text-primary)">
+      <span class="icon-badge icon-badge--brand icon-badge--sm mr-2"><i class="fa-solid fa-clapperboard"></i></span>
+      Video Tutorial
+    </p>
+  
+    <div id="tutorialVideoFrame" class="video-frame relative overflow-hidden cursor-pointer">
+      <div id="tutorialVideoPlaceholder" class="video-placeholder">
+        <div class="video-play-btn">
+          <i class="fa-solid fa-play ml-0.5"></i>
         </div>
-
-        <p class="text-xs mt-3 leading-relaxed" style="color:var(--text-muted)">
-          Belum tahu cara unduh data Instagram? Tonton tutorialnya di sini sebelum mulai membandingkan.
-        </p>
+        <p class="text-sm font-semibold">Cara Export &amp; Upload Data IG</p>
+        <p class="text-xs opacity-80 max-w-[220px]">Tonton panduan singkat sebelum mengunggah file ZIP kamu</p>
       </div>
+      <span class="video-duration-tag"><i class="fa-regular fa-clock mr-1"></i>3 menit</span>
+    </div>
+  
+    <p class="text-xs mt-3 leading-relaxed" style="color:var(--text-muted)">
+      Belum tahu cara unduh data Instagram? Tonton tutorialnya di sini sebelum mulai membandingkan.
+    </p>
+  </div>
 
     </div>
 
@@ -559,7 +566,7 @@
       <!-- ═══ TABS + TABLE ═══ -->
       <div class="card">
 
-        <div class="flex border-b overflow-x-auto" style="border-color:var(--border)">
+        <div class="flex border-b overflow-x-auto tab-scroll" style="border-color:var(--border)">
           <button class="tab-btn active px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="unfoll">
             <i class="fa-solid fa-user-minus mr-1.5"></i>
             Unfoll <span id="badgeUnfoll" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
@@ -572,18 +579,9 @@
             <i class="fa-solid fa-handshake mr-1.5"></i>
             Mutualan <span id="badgeMutualan" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
           </button>
-          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="recent">
-            <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>
-            My-unfollow <span id="badgeRecent" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-nano">0</span>
-          </button>
           <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="blocked">
             <i class="fa-solid fa-ban mr-1.5 txt-red"></i>
             Diblokir <span id="badgeBlocked" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-danger">0</span>
-          </button>
-          <button class="tab-btn px-5 py-3.5 text-sm font-medium whitespace-nowrap" data-tab="unfollow_detector">
-            <i class="fa-solid fa-user-slash mr-1.5 txt-red"></i>
-            Unfollow Detector
-            <span id="badgeUnfollowDetector" class="ml-1.5 px-2 py-0.5 rounded-full text-xs badge-danger">0</span>
           </button>
         </div>
 

@@ -219,6 +219,7 @@ body {
   transition: stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+
 /* ─── TOGGLE SWITCH ─── */
 .toggle-track {
   width: 42px;

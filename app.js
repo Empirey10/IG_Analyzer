@@ -1,13 +1,11 @@
 /* ══════════════════════════════════════════════════════════════
-       CONFIG
+        CONFIG
     ══════════════════════════════════════════════════════════════ */
-// Isi dengan URL embed YouTube untuk video tutorial.
-// Contoh: "https://www.youtube.com/embed/VIDEO_ID"
-// Biarkan kosong ("") untuk menampilkan placeholder.
+// Biarkan kosong ("") karena kita akan menggunakan file lokal "Tutorial.mp4"
 const TUTORIAL_VIDEO_EMBED_URL = "";
 
 /* ══════════════════════════════════════════════════════════════
-       SECTION 1: THEME TOGGLE
+        SECTION 1: THEME TOGGLE (Tetap Sama)
     ══════════════════════════════════════════════════════════════ */
 const html = document.documentElement;
 const themeToggle = document.getElementById("themeToggle");
@@ -15,32 +13,43 @@ const themeToggle = document.getElementById("themeToggle");
 if (localStorage.getItem("igTheme") === "dark") {
   html.classList.add("dark");
 }
-
-themeToggle.addEventListener("click", () => {
-  const isDark = html.classList.toggle("dark");
-  localStorage.setItem("igTheme", isDark ? "dark" : "light");
-});
+if (themeToggle) {
+  themeToggle.addEventListener("click", () => {
+    const isDark = html.classList.toggle("dark");
+    localStorage.setItem("igTheme", isDark ? "dark" : "light");
+  });
+}
 
 /* ══════════════════════════════════════════════════════════════
-       SECTION 2: TUTORIAL VIDEO SETUP
+        SECTION 2: TUTORIAL VIDEO SETUP (Sistem Klik Aktif)
     ══════════════════════════════════════════════════════════════ */
 (function setupTutorialVideo() {
   const videoFrame = document.getElementById("tutorialVideoFrame");
   const placeholder = document.getElementById("tutorialVideoPlaceholder");
   if (!videoFrame) return;
 
-  if (TUTORIAL_VIDEO_EMBED_URL && TUTORIAL_VIDEO_EMBED_URL.trim() !== "") {
-    const iframe = document.createElement("iframe");
-    iframe.src = TUTORIAL_VIDEO_EMBED_URL.trim();
-    iframe.setAttribute("frameborder", "0");
-    iframe.setAttribute("allow",
-      "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
-    iframe.setAttribute("allowfullscreen", "");
-    iframe.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border-radius:inherit";
+  // Ketika area frame / placeholder di-klik oleh user
+  videoFrame.addEventListener("click", function handler() {
+    // Hapus event listener agar tidak ke-trigger dua kali
+    videoFrame.removeEventListener("click", handler);
+
+    // 1. Sembunyikan tampilan placeholder bawaan secara instan
     if (placeholder) placeholder.style.display = "none";
+    
+    // 2. Buat tag <video> HTML5 untuk memutar file lokal MP4
+    const video = document.createElement("video");
+    video.src = "Tutorial.mp4"; // Diarahkan ke file mp4 lokal kamu
+    video.controls = true;
+    video.autoplay = true; // Langsung berputar pasca-klik
+    video.playsInline = true;
+    
+    // Styling ketat agar ukurannya presisi mengunci di dalam frame asli kamu
+    video.style.cssText = "width:100%; height:100%; object-fit:contain; background:#000; border-radius:inherit; position:absolute; inset:0; z-index:10;";
+    
+    // 3. Masukkan ke dalam frame utama
     videoFrame.style.position = "relative";
-    videoFrame.appendChild(iframe);
-  }
+    videoFrame.appendChild(video);
+  });
 })();
 
 /* ══════════════════════════════════════════════════════════════
@@ -159,6 +168,43 @@ function checkBothFilesReady() {
   }
 }
 
+function normalizeUserList(users) {
+  return Array.from(
+    new Set((users || []).map(normalizeUsername).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+}
+
+function mergeDateMaps(targetMap, sourceMap) {
+  if (!targetMap || !sourceMap || typeof sourceMap.forEach !== "function") return;
+
+  sourceMap.forEach((date, username) => {
+    const key = normalizeUsername(username);
+    if (!key) return;
+    targetMap.set(key, date);
+  });
+}
+
+function buildRelationshipData(oldData, newData) {
+  const oldFollowing = normalizeUserList(oldData?.following || []);
+  const oldFollowers = normalizeUserList(oldData?.followers || []);
+  const newFollowing = normalizeUserList(newData?.following || []);
+  const newFollowers = normalizeUserList(newData?.followers || []);
+
+  const newFollowingSet = new Set(newFollowing);
+  const newFollowersSet = new Set(newFollowers);
+
+  return {
+    oldFollowing,
+    oldFollowers,
+    newFollowing,
+    newFollowers,
+    unfoll: newFollowing.filter((u) => !newFollowersSet.has(u)),
+    fans: newFollowers.filter((u) => !newFollowingSet.has(u)),
+    mutualan: newFollowing.filter((u) => newFollowersSet.has(u)),
+    unfollowDetected: oldFollowers.filter((u) => !newFollowersSet.has(u)),
+  };
+}
+
 document.getElementById("compareBtn").addEventListener("click", async () => {
   if (!oldFileData || !newFileData) {
     showError("Silakan upload kedua file terlebih dahulu!");
@@ -166,16 +212,18 @@ document.getElementById("compareBtn").addEventListener("click", async () => {
   }
   showLoading();
   try {
-    const unfollowed = compareData(oldFileData, newFileData);
+    const relationship = buildRelationshipData(oldFileData, newFileData);
+    const unfollowed = relationship.unfollowDetected;
 
     const combinedDateMap = new Map();
-    oldFileData.followingWithDateMap.forEach((date, username) => combinedDateMap.set(username, date));
-    newFileData.followingWithDateMap.forEach((date, username) => combinedDateMap.set(username, date));
-    newFileData.followersDateMap.forEach((date, username) => combinedDateMap.set(username, date));
+    mergeDateMaps(combinedDateMap, oldFileData.followingWithDateMap);
+    mergeDateMaps(combinedDateMap, oldFileData.followersDateMap);
+    mergeDateMaps(combinedDateMap, newFileData.followingWithDateMap);
+    mergeDateMaps(combinedDateMap, newFileData.followersDateMap);
 
-    state.unfoll = newFileData.following.filter((u) => !newFileData.followers.includes(u));
-    state.fans = newFileData.followers.filter((u) => !newFileData.following.includes(u));
-    state.mutualan = newFileData.following.filter((u) => newFileData.followers.includes(u));
+    state.unfoll = relationship.unfoll;
+    state.fans = relationship.fans;
+    state.mutualan = relationship.mutualan;
     state.recent = newFileData.recent;
     state.blocked = newFileData.blocked;
     state.combinedDateMap = combinedDateMap;
@@ -188,11 +236,11 @@ document.getElementById("compareBtn").addEventListener("click", async () => {
     renderResults(newFileData.followers.length, newFileData.following.length);
     showResults();
 
-    if (unfollowed.length > 0) {
-      showError(`🔍 Ditemukan ${unfollowed.length} akun yang unfollow! Cek tab "Unfollow Detector"`);
-    } else {
-      showError(`✅ Tidak ada yang unfollow! Semua aman.`);
-    }
+    // if (unfollowed.length > 0) {
+    //   showError(`🔍 Ditemukan ${unfollowed.length} akun yang unfollow! Cek tab "Unfollow Detector"`);
+    // } else {
+    //   showError(`✅ Tidak ada yang unfollow! Semua aman.`);
+    // }
   } catch (err) {
     hideLoading();
     showError(err.message || "Terjadi kesalahan saat membandingkan data.");
@@ -201,162 +249,496 @@ document.getElementById("compareBtn").addEventListener("click", async () => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-       SECTION 6: EXTRACTOR FUNCTIONS (FIXED)
-   ══════════════════════════════════════════════════════════════ */
+       SECTION 6: EXTRACTOR FUNCTIONS — REWRITTEN & MAXIMIZED
+       Menangani semua format Instagram data export:
+         • Format lama  : <table> dengan <td>
+         • Format tengah: <div> nested dengan class _a706/_a72d
+         • Format baru  : <div> flat dengan <a> + <time>
+         • Format _u/   : URL dengan prefix /_u/username
+         • JSON embedded: window.__additionalData di <script>
+    ══════════════════════════════════════════════════════════════ */
+
+/* ─── UTIL: normalisasi username ke bentuk kanonik ─────────────
+   Dipanggil di SETIAP titik: ekstraksi, perbandingan, render.
+   Menjamin "Budi123 ", "budi123/", "BUDI123" semua → "budi123"
+───────────────────────────────────────────────────────────────── */
+function normalizeUsername(u) {
+  if (!u || typeof u !== "string") return "";
+  return u
+    .toLowerCase()          // huruf kecil semua
+    .trim()                 // buang spasi awal/akhir
+    .replace(/\/+$/, "")    // buang trailing slash: "user/" → "user"
+    .replace(/\s+/g, "");   // buang semua whitespace internal
+}
+
+/* ─── UTIL: ekstrak username dari satu href ────────────────────
+   Menangani semua variasi URL Instagram yang diketahui:
+     https://www.instagram.com/username/
+     https://instagram.com/username
+     https://www.instagram.com/_u/username/
+     http://instagram.com/username?...
+───────────────────────────────────────────────────────────────── */
 function extractUsernameFromLink(href) {
-  if (!href) return null;
-  // Regex universal untuk menangkap username dari url instagram (termasuk variasi dengan _u/)
-  const match = href.match(/instagram\.com\/(?:_u\/)?([^/"'?#]+)/i);
-  if (match && match[1]) {
-    let username = match[1].toLowerCase().trim();
-    const blacklist = ["explore","p","reel","reels","stories","accounts","directory","about","legal","help","terms","download","your","information","language","meta","privacy","guidelines"];
-    if (!blacklist.includes(username) && !username.includes(" ")) {
-      return username;
+  if (!href || typeof href !== "string") return null;
+
+  // Normalisasi URL: decode entity HTML (&amp; → &, dll)
+  let url = href.trim();
+  try {
+    // Coba decode HTML entities jika ada
+    const tmp = document.createElement("textarea");
+    tmp.innerHTML = url;
+    url = tmp.value;
+  } catch (_) {}
+
+  // Pola URL instagram: tangkap username setelah domain, opsional /_u/
+  const match = url.match(
+    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:_u\/)?([A-Za-z0-9._]+(?:\.[A-Za-z0-9._]+)*)\/?(?:[?#].*)?$/i
+  );
+
+  if (!match || !match[1]) return null;
+
+  const username = normalizeUsername(match[1]);
+
+  // Validasi: username Instagram hanya boleh mengandung huruf, angka, titik, underscore
+  if (!username || !/^[a-z0-9._]+$/.test(username)) return null;
+  if (username.length < 1 || username.length > 30) return null;
+
+  // Blacklist path Instagram yang bukan username
+  const BLACKLIST = new Set([
+    "explore", "p", "reel", "reels", "stories", "accounts",
+    "directory", "about", "legal", "help", "terms", "download",
+    "your_information", "your", "information", "language",
+    "meta", "privacy", "guidelines", "login", "signup",
+    "challenge", "oauth", "api", "graphql", "data",
+    "ar", "tv", "web", "static", "cdn", "maps",
+    "favicon.ico", "robots.txt",
+  ]);
+  if (BLACKLIST.has(username)) return null;
+
+  return username;
+}
+
+/* ─── UTIL: parse tanggal dari berbagai format ─────────────────
+   Instagram menggunakan format:
+     "Jan 1, 2024"       (bahasa Inggris)
+     "1 Jan 2024"        (variasi)
+     "2024-01-01T00:00:00" (ISO 8601 dari <time>)
+     "Jan 1, 2024, 12:00 AM" (dengan waktu)
+───────────────────────────────────────────────────────────────── */
+function parseDateText(text) {
+  if (!text) return null;
+  const cleaned = String(text).trim();
+
+  const toDisplay = (date, withTime = false) => {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleDateString("id-ID", { month: "short" }).replace(".", "");
+    const year = date.getFullYear();
+    if (!withTime) return `${day} ${month} ${year}`;
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${day} ${month} ${year}, ${hours}:${minutes}`;
+  };
+
+  const monthNames = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    mei: 4, agu: 7, okt: 9, des: 11,
+    january: 0, february: 1, march: 2, april: 3,
+    june: 5, july: 6, august: 7, september: 8,
+    october: 9, november: 10, december: 11,
+  };
+
+  const parseIso = (value) => {
+    const d = new Date(value);
+    if (!isNaN(d)) {
+      const hasTime = /\d{2}:\d{2}/.test(value);
+      return toDisplay(d, hasTime);
     }
+    return null;
+  };
+
+  const tryDirect = parseIso(cleaned);
+  if (tryDirect) return tryDirect;
+
+  const tryIsoLike = cleaned.replace(/\s+/g, " ").replace(/\s+(AM|PM)$/i, "$1");
+  const isoMatch = tryIsoLike.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s](\d{2}:\d{2})(?::\d{2})?)?/);
+  if (isoMatch) {
+    const normalized = isoMatch[2] ? `${isoMatch[1]}T${isoMatch[2]}:00` : isoMatch[1];
+    return parseIso(normalized);
   }
+
+  const parseMonthDayYear = (monthStr, dayStr, yearStr, timeStr) => {
+    const monthKey = monthStr.toLowerCase();
+    const monthIndex = monthNames[monthKey];
+    if (monthIndex === undefined) return null;
+    const day = Number(dayStr);
+    const year = Number(yearStr);
+    if (!day || !year) return null;
+
+    let hours = 0;
+    let minutes = 0;
+    if (timeStr) {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (!timeMatch) return null;
+      hours = Number(timeMatch[1]);
+      minutes = Number(timeMatch[2]);
+      const meridiem = timeMatch[3]?.toUpperCase();
+      if (meridiem === "PM" && hours < 12) hours += 12;
+      if (meridiem === "AM" && hours === 12) hours = 0;
+    }
+
+    const date = new Date(year, monthIndex, day, hours, minutes);
+    return toDisplay(date, Boolean(timeStr));
+  };
+
+  let match = cleaned.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:,?\s*(\d{1,2}:\d{2}(?:\s*(?:AM|PM))?))?$/i);
+  if (match) {
+    return parseMonthDayYear(match[1], match[2], match[3], match[4]);
+  }
+
+  match = cleaned.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,?\s*(\d{1,2}:\d{2}(?:\s*(?:AM|PM))?))?$/i);
+  if (match) {
+    return parseMonthDayYear(match[2], match[1], match[3], match[4]);
+  }
+
   return null;
 }
 
+/* ─── UTIL: cari teks tanggal paling dekat dengan sebuah elemen ─
+   Menelusuri DOM ke atas dan samping untuk menemukan tanggal.
+───────────────────────────────────────────────────────────────── */
+function findNearbyDate(linkEl) {
+  // Strategi 1: cek <time> di kontainer yang sama
+  let container = linkEl.parentElement;
+  for (let i = 0; i < 5 && container; i++) {
+    const timeEl = container.querySelector("time");
+    if (timeEl) {
+      // Prioritaskan atribut datetime, lalu textContent
+      const dt = timeEl.getAttribute("datetime") || timeEl.textContent;
+      const parsed = parseDateText(dt);
+      if (parsed) return parsed;
+    }
+    container = container.parentElement;
+  }
+
+  // Strategi 2: cari teks tanggal di div/td saudara (sibling)
+  let parent = linkEl.parentElement;
+  for (let i = 0; i < 4 && parent; i++) {
+    // Cek semua child langsung dari parent
+    const children = Array.from(parent.children);
+    for (const child of children) {
+      if (child === linkEl) continue;
+      if (child.contains(linkEl)) continue;
+      const text = child.textContent.trim();
+      const parsed = parseDateText(text);
+      if (parsed) return parsed;
+
+      // Cek kedalaman 1 ke dalam child tersebut
+      for (const grandchild of Array.from(child.children)) {
+        const gcText = grandchild.textContent.trim();
+        const gcParsed = parseDateText(gcText);
+        if (gcParsed) return gcParsed;
+      }
+    }
+    parent = parent.parentElement;
+  }
+
+  // Strategi 3: cari pola tanggal di teks keseluruhan kontainer terdekat
+  let ctx = linkEl.closest("div, tr, li");
+  if (ctx) {
+    const fullText = ctx.textContent || "";
+    const dateMatch = fullText.match(
+      /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|Mei|Agu|Okt|Des)\s+\d{1,2},?\s+\d{4}/i
+    );
+    if (dateMatch) {
+      const parsed = parseDateText(dateMatch[0]);
+      if (parsed) return parsed;
+    }
+    // ISO dalam teks
+    const isoMatch = fullText.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
+    if (isoMatch) {
+      const parsed = parseDateText(isoMatch[0]);
+      if (parsed) return parsed;
+    }
+  }
+
+  return null;
+}
+
+/* ─── CORE: ekstrak dari semua <a href*=instagram.com> ─────────
+   Satu fungsi tunggal yang dipakai oleh following DAN followers.
+   targetSet  : Set<string> — diisi dengan username
+   dateMap    : Map<string,string> — diisi dengan tanggal follow
+───────────────────────────────────────────────────────────────── */
+function extractFromHtml(htmlString, targetSet, dateMap) {
+  if (!htmlString || typeof htmlString !== "string") return;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+
+  /* === Jalur A: JSON embedded di <script> =====================
+     Beberapa versi export menyimpan data dalam:
+       window.__additionalData = { ... }
+     atau tag <script type="text/json"> / <script type="application/json">
+  ============================================================== */
+  const scripts = doc.querySelectorAll("script");
+  scripts.forEach(script => {
+    const src = script.textContent || "";
+    // Coba parse JSON dari window.__additionalData
+    const jsonMatch = src.match(/window\.__additionalData\s*=\s*(\{[\s\S]*?\})(?:\s*;|$)/);
+    if (jsonMatch) {
+      try {
+        const data = JSON.parse(jsonMatch[1]);
+        extractFromJsonObject(data, targetSet, dateMap);
+      } catch (_) {}
+    }
+    // Coba parse jika seluruh isi script adalah JSON
+    if (src.trim().startsWith("{") || src.trim().startsWith("[")) {
+      try {
+        const data = JSON.parse(src.trim());
+        extractFromJsonObject(data, targetSet, dateMap);
+      } catch (_) {}
+    }
+  });
+
+  /* === Jalur B: <a href*=instagram.com> (semua format HTML) ===
+     Ini jalur utama — menangkap semua format div/tabel/list.
+  ============================================================== */
+  const links = doc.querySelectorAll("a[href]");
+  links.forEach(link => {
+    const href = link.getAttribute("href") || "";
+    if (!href.includes("instagram.com")) return;
+
+    const username = extractUsernameFromLink(href);
+    if (!username) return;
+
+    // Jangan overwrite username yang sudah ada (Set.add() sudah idempoten)
+    targetSet.add(username);
+
+    // Cari tanggal hanya jika belum ada di map
+    if (!dateMap.has(username)) {
+      const dateStr = findNearbyDate(link);
+      dateMap.set(username, dateStr || "Tanggal tidak tersedia");
+    }
+  });
+
+  /* === Jalur C: tabel lama — <td> berisi username teks biasa ==
+     Format export sangat lama tidak punya link, hanya teks.
+  ============================================================== */
+  const rows = doc.querySelectorAll("tr");
+  rows.forEach(row => {
+    const cells = row.querySelectorAll("td");
+    if (cells.length === 0) return;
+
+    cells.forEach((cell, idx) => {
+      const headerLike = cell.textContent.toLowerCase().trim();
+      // Jika sel ini adalah header "Username" / "Nama Pengguna", skip
+      if (headerLike === "username" || headerLike === "nama pengguna") return;
+
+      // Coba ekstrak dari link di dalam sel
+      const cellLink = cell.querySelector("a[href*='instagram.com']");
+      if (cellLink) return; // sudah ditangani di Jalur B
+
+      // Teks mentah yang menyerupai username (tidak ada spasi, tidak ada http)
+      const rawText = normalizeUsername(cell.textContent);
+      if (
+        rawText &&
+        rawText.length >= 1 &&
+        rawText.length <= 30 &&
+        /^[a-z0-9._]+$/.test(rawText) &&
+        !rawText.startsWith("http")
+      ) {
+        targetSet.add(rawText);
+
+        // Cari tanggal di sel berikutnya
+        if (!dateMap.has(rawText) && cells[idx + 1]) {
+          const nextText = cells[idx + 1].textContent.trim();
+          const parsed = parseDateText(nextText);
+          dateMap.set(rawText, parsed || "Tanggal tidak tersedia");
+        } else if (!dateMap.has(rawText)) {
+          dateMap.set(rawText, "Tanggal tidak tersedia");
+        }
+      }
+    });
+  });
+}
+
+/* ─── UTIL: rekursif ekstrak dari JSON object ──────────────────
+   Menangani struktur JSON export Instagram yang kompleks.
+───────────────────────────────────────────────────────────────── */
+function extractFromJsonObject(obj, targetSet, dateMap, depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 8) return;
+
+  if (Array.isArray(obj)) {
+    obj.forEach(item => extractFromJsonObject(item, targetSet, dateMap, depth + 1));
+    return;
+  }
+
+  // Cek apakah objek ini punya field username atau href
+  const username = obj.username || obj.value || obj.string_value;
+  if (username && typeof username === "string") {
+    const normalized = normalizeUsername(username);
+    if (normalized && /^[a-z0-9._]+$/.test(normalized)) {
+      targetSet.add(normalized);
+      if (!dateMap.has(normalized)) {
+        const rawDate = obj.timestamp || obj.date || obj.time || null;
+        const parsed = rawDate ? parseDateText(String(rawDate)) : null;
+        dateMap.set(normalized, parsed || "Tanggal tidak tersedia");
+      }
+    }
+  }
+
+  // Cek href
+  const href = obj.href;
+  if (href && typeof href === "string" && href.includes("instagram.com")) {
+    const extracted = extractUsernameFromLink(href);
+    if (extracted) {
+      targetSet.add(extracted);
+      if (!dateMap.has(extracted)) {
+        dateMap.set(extracted, "Tanggal tidak tersedia");
+      }
+    }
+  }
+
+  // Rekursi ke semua value
+  Object.values(obj).forEach(val => {
+    if (val && typeof val === "object") {
+      extractFromJsonObject(val, targetSet, dateMap, depth + 1);
+    }
+  });
+}
+
+/* ─── PUBLIC: wrapper untuk following.html ─────────────────────
+   (Tetap ada agar pemanggil lama tidak perlu diubah)
+───────────────────────────────────────────────────────────────── */
 function extractFollowingWithDate(htmlString, targetSet, dateMap) {
-  // Menggunakan DOMParser agar parsing HTML jauh lebih akurat dibanding Regex baris per baris
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, "text/html");
-  const links = doc.querySelectorAll("a[href*='instagram.com']");
-
-  links.forEach(link => {
-    const username = extractUsernameFromLink(link.getAttribute("href"));
-    if (username) {
-      targetSet.add(username);
-      
-      // Cari teks tanggal di sekitar elemen pembungkus data ini
-      let parentContainer = link.closest("div");
-      if (parentContainer) {
-        const textContent = parentContainer.textContent || "";
-        // Deteksi format nama bulan bahasa Inggris atau Indonesia standar beserta tahunnya
-        const dateMatch = textContent.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Iba|Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des)\s+\d+,\s+\d{4}/i);
-        if (dateMatch) {
-          dateMap.set(username, dateMatch[0]);
-        } else {
-          // Fallback jika struktur berbeda, ambil teks div paling akhir di dalam kontainer
-          const divs = parentContainer.querySelectorAll("div");
-          if (divs.length > 0) {
-            let lastDivText = divs[divs.length - 1].textContent.trim();
-            if (lastDivText && lastDivText !== username && lastDivText.length < 50) {
-              dateMap.set(username, lastDivText);
-            }
-          }
-        }
-      }
-      if (!dateMap.has(username)) {
-        dateMap.set(username, "Tanggal tidak tersedia");
-      }
-    }
-  });
+  extractFromHtml(htmlString, targetSet, dateMap);
 }
 
+/* ─── PUBLIC: wrapper untuk followers_N.html ───────────────────
+   (Tetap ada agar pemanggil lama tidak perlu diubah)
+───────────────────────────────────────────────────────────────── */
 function extractFollowersWithDate(htmlString, targetSet, dateMap) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, "text/html");
-  const links = doc.querySelectorAll("a[href*='instagram.com']");
-
-  links.forEach(link => {
-    const username = extractUsernameFromLink(link.getAttribute("href"));
-    if (username) {
-      targetSet.add(username);
-      
-      let parentContainer = link.closest("div");
-      if (parentContainer) {
-        const divs = parentContainer.querySelectorAll("div");
-        if (divs.length > 0) {
-          let lastDivText = divs[divs.length - 1].textContent.trim();
-          if (lastDivText && lastDivText !== username && lastDivText.length < 50) {
-            dateMap.set(username, lastDivText);
-          }
-        }
-      }
-      if (!dateMap.has(username)) {
-        dateMap.set(username, "Tanggal tidak tersedia");
-      }
-    }
-  });
+  extractFromHtml(htmlString, targetSet, dateMap);
 }
 
+/* ─── PUBLIC: wrapper generik (recently_unfollowed, blocked) ───
+───────────────────────────────────────────────────────────────── */
 function extractWithRegex(htmlString, targetSet) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, "text/html");
-  const links = doc.querySelectorAll("a[href*='instagram.com']");
-  links.forEach(link => {
-    const username = extractUsernameFromLink(link.getAttribute("href"));
-    if (username) targetSet.add(username);
-  });
+  const dummyMap = new Map();
+  extractFromHtml(htmlString, targetSet, dummyMap);
 }
 
 function extractTableText(htmlString, targetSet) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, "text/html");
-  
-  // Ambil dari link jika ada
-  const links = doc.querySelectorAll("a[href*='instagram.com']");
-  links.forEach(link => {
-    const username = extractUsernameFromLink(link.getAttribute("href"));
-    if (username) targetSet.add(username);
-  });
-
-  // Ambil dari selector tabel teks biasa jika strukturnya berbentuk tabel lama
-  const tds = doc.querySelectorAll("td");
-  for (let i = 0; i < tds.length; i++) {
-    let text = tds[i].textContent.trim();
-    if ((text.toLowerCase() === "nama pengguna" || text.toLowerCase() === "username") && tds[i+1]) {
-      let username = tds[i+1].textContent.toLowerCase().trim();
-      if (username && !username.includes(" ") && !username.startsWith("http")) {
-        targetSet.add(username);
-      }
-    }
-  }
+  const dummyMap = new Map();
+  extractFromHtml(htmlString, targetSet, dummyMap);
 }
 
+/* ─── PUBLIC: proses ZIP — deteksi SEMUA file relevan ──────────
+   Perbaikan dari versi lama:
+     • followers_1..N.html semua terbaca (bukan hanya followers.html)
+     • following_1..N.html juga ditangani
+     • File di subfolder manapun dalam ZIP tetap terdeteksi
+     • Nama file case-insensitive
+───────────────────────────────────────────────────────────────── */
 async function extractDataFromZip(file) {
   const zip = await JSZip.loadAsync(file);
-  const followersSet = new Set();
-  const followingSet = new Set();
-  const followersDateMap = new Map();
-  const followingWithDateMap = new Map();
-  const recentSet = new Set();
-  const blockedSet = new Set();
 
-  for (let [filename, fileData] of Object.entries(zip.files)) {
-    if (!fileData.dir && filename.endsWith(".html")) {
-      const parts = filename.split(/[\\/]/);
-      const justName = parts[parts.length - 1].toLowerCase();
-      
-      // Menggunakan regex agar file followers_1.html, followers_2.html, dst semuanya terekstraksi penuh
-      if (/^followers(_\d+)?\.html$/.test(justName)) {
-        const htmlContent = await fileData.async("string");
-        extractFollowersWithDate(htmlContent, followersSet, followersDateMap);
-      } else if (justName === "following.html") {
-        const htmlContent = await fileData.async("string");
-        extractFollowingWithDate(htmlContent, followingSet, followingWithDateMap);
-      } else if (justName === "recently_unfollowed_profiles.html") {
-        extractTableText(await fileData.async("string"), recentSet);
-      } else if (justName === "blocked_profiles.html") {
-        extractTableText(await fileData.async("string"), blockedSet);
-      }
+  const followersSet        = new Set();
+  const followingSet        = new Set();
+  const followersDateMap    = new Map();
+  const followingWithDateMap = new Map();
+  const recentSet           = new Set();
+  const blockedSet          = new Set();
+
+  // Kumpulkan semua entry file (bukan direktori) dan sort agar konsisten
+  const fileEntries = Object.entries(zip.files)
+    .filter(([, fileData]) => !fileData.dir)
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  for (const [filename, fileData] of fileEntries) {
+    // Ambil nama file saja (tanpa path folder) dan lowercase
+    const parts    = filename.split(/[\\/]/);
+    const justName = parts[parts.length - 1].toLowerCase();
+    const ext      = justName.split(".").pop();
+
+    // Hanya proses file HTML
+    if (ext !== "html") continue;
+
+    const htmlContent = await fileData.async("string");
+
+    /* ── Followers: followers.html, followers_1.html, followers_2.html … ── */
+    if (/^followers(?:_\d+)?\.html$/.test(justName)) {
+      extractFollowersWithDate(htmlContent, followersSet, followersDateMap);
+      continue;
+    }
+
+    /* ── Following: following.html, following_1.html … ── */
+    if (/^following(?:_\d+)?\.html$/.test(justName)) {
+      extractFollowingWithDate(htmlContent, followingSet, followingWithDateMap);
+      continue;
+    }
+
+    /* ── Recently unfollowed ── */
+    if (justName === "recently_unfollowed_profiles.html") {
+      extractTableText(htmlContent, recentSet);
+      continue;
+    }
+
+    /* ── Blocked profiles ── */
+    if (justName === "blocked_profiles.html") {
+      extractTableText(htmlContent, blockedSet);
+      continue;
     }
   }
 
+  // Normalisasi ulang semua Set sebelum dikembalikan — jaminan terakhir
+  const normalizedFollowers = new Set(Array.from(followersSet).map(normalizeUsername).filter(Boolean));
+  const normalizedFollowing = new Set(Array.from(followingSet).map(normalizeUsername).filter(Boolean));
+
+  // Rebuild dateMap dengan key yang sudah ternormalisasi
+  const normFollowersDateMap = new Map();
+  followersDateMap.forEach((date, raw) => {
+    const key = normalizeUsername(raw);
+    if (key) normFollowersDateMap.set(key, date);
+  });
+
+  const normFollowingDateMap = new Map();
+  followingWithDateMap.forEach((date, raw) => {
+    const key = normalizeUsername(raw);
+    if (key) normFollowingDateMap.set(key, date);
+  });
+
   return {
-    followers: Array.from(followersSet),
-    following: Array.from(followingSet),
-    followersDateMap,
-    followingWithDateMap,
-    recent: Array.from(recentSet),
-    blocked: Array.from(blockedSet),
+    followers:           Array.from(normalizedFollowers),
+    following:           Array.from(normalizedFollowing),
+    followersDateMap:    normFollowersDateMap,
+    followingWithDateMap: normFollowingDateMap,
+    recent:              Array.from(recentSet).map(normalizeUsername).filter(Boolean),
+    blocked:             Array.from(blockedSet).map(normalizeUsername).filter(Boolean),
   };
 }
 
+/* ─── PUBLIC: bandingkan dua snapshot — siapa yang unfollow ────
+   Menggunakan Set untuk lookup O(1), bukan Array.includes() O(n).
+   Semua username dinormalisasi ulang sebelum dibandingkan.
+───────────────────────────────────────────────────────────────── */
 function compareData(oldData, newData) {
-  const newFollowingSet = new Set(newData.following);
-  return oldData.following.filter(u => !newFollowingSet.has(u));
+  // LOGIKA UTAMA DITAMBAHKAN TANPA MENGURANGI APAPUN
+  // Kita menggunakan array cadangan (|| []) agar tidak error jika data kosong
+
+  // 1. Buat Set dari data FOLLOWERS BARU untuk pencarian super cepat
+  const newFollowersSet = new Set(
+    (newData.followers || []).map(normalizeUsername).filter(Boolean)
+  );
+
+  // 2. Ambil data FOLLOWERS LAMA, lalu saring (filter)
+  // Cari siapa saja di data lama yang TIDAK ADA (!has) di data followers baru
+  // Inilah orang-orang yang terdeteksi melakukan UNFOLLOW
+  return (oldData.followers || [])
+    .map(normalizeUsername)
+    .filter(Boolean)
+    .filter(u => !newFollowersSet.has(u));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -376,28 +758,24 @@ function renderResults(followersCount, followingCount) {
   animateNumber("statMutualan", mutualan.length);
 
   // Tab badges
-  document.getElementById("badgeUnfoll").textContent = unfoll.length.toLocaleString("id");
-  document.getElementById("badgeFans").textContent = fans.length.toLocaleString("id");
-  document.getElementById("badgeMutualan").textContent = mutualan.length.toLocaleString("id");
-  document.getElementById("badgeRecent").textContent = state.recent.length.toLocaleString("id");
-  document.getElementById("badgeBlocked").textContent = state.blocked.length.toLocaleString("id");
-
-  const badgeDetector = document.getElementById("badgeUnfollowDetector");
-  if (badgeDetector) badgeDetector.textContent = unfollowDetected.length.toLocaleString("id");
+  setText("badgeUnfoll", unfoll.length.toLocaleString("id"));
+  setText("badgeFans", fans.length.toLocaleString("id"));
+  setText("badgeMutualan", mutualan.length.toLocaleString("id"));
+  setText("badgeBlocked", state.blocked.length.toLocaleString("id"));
 
   // Engagement ratios
   const pctUnfoll = grand ? Math.round((unfoll.length / grand) * 100) : 0;
   const pctFans   = grand ? Math.round((fans.length   / grand) * 100) : 0;
   const pctMutualan = grand ? Math.round((mutualan.length / grand) * 100) : 0;
 
-  document.getElementById("ratioUnfoll").textContent = pctUnfoll + "%";
-  document.getElementById("ratioFans").textContent = pctFans + "%";
-  document.getElementById("ratioMutualan").textContent = pctMutualan + "%";
-  document.getElementById("legendUnfoll").textContent = pctUnfoll + "%";
-  document.getElementById("legendFans").textContent = pctFans + "%";
-  document.getElementById("legendMutualan").textContent = pctMutualan + "%";
-  document.getElementById("donutCenter").textContent = grand.toLocaleString("id");
-  document.getElementById("mutualScore").textContent = pctMutualan + "%";
+  setText("ratioUnfoll", pctUnfoll + "%");
+  setText("ratioFans", pctFans + "%");
+  setText("ratioMutualan", pctMutualan + "%");
+  setText("legendUnfoll", pctUnfoll + "%");
+  setText("legendFans", pctFans + "%");
+  setText("legendMutualan", pctMutualan + "%");
+  setText("donutCenter", grand.toLocaleString("id"));
+  setText("mutualScore", pctMutualan + "%");
 
   setTimeout(() => {
     document.getElementById("progUnfoll").style.width = pctUnfoll + "%";
@@ -525,6 +903,7 @@ function renderDonut(pctUnfoll, pctFans, pctMutualan) {
   dMutualan.style.strokeDashoffset = -(segUnfoll + segFans);
 }
 
+
 /* ══════════════════════════════════════════════════════════════
        SECTION 10: TABLE RENDERING
     ══════════════════════════════════════════════════════════════ */
@@ -562,8 +941,11 @@ function renderTable() {
 
   if (showLoadMore) {
     const remaining = filtered.length - displayCount;
-    document.getElementById("loadMoreInfo").textContent =
-      `Menampilkan ${displayCount} dari ${filtered.length.toLocaleString("id")} akun (${remaining} lagi)`;
+    const loadMoreInfo = document.getElementById("loadMoreInfo");
+    if (loadMoreInfo) {
+      loadMoreInfo.textContent =
+        `Menampilkan ${displayCount} dari ${filtered.length.toLocaleString("id")} akun (${remaining} lagi)`;
+    }
   }
   loadMoreWrap.classList.toggle("hidden", !showLoadMore);
 
@@ -637,11 +1019,20 @@ function buildRow(username, index, tab, dateMap) {
       </td>
       <td class="px-5 py-3 hidden md:table-cell">${statusHint}</td>
       <td class="px-5 py-3 hidden sm:table-cell">
-        <a href="https://instagram.com/${encodeURIComponent(username)}" target="_blank" rel="noopener noreferrer"
-          class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
-          style="border-color:var(--border);color:var(--text-muted);background:var(--bg-muted)">
-          <i class="fa-brands fa-instagram text-pink-500"></i> Buka Profil
-        </a>
+        <div class="flex items-center justify-end gap-2">
+          <a href="https://instagram.com/${encodeURIComponent(username)}" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
+            style="border-color:var(--border);color:var(--text-muted);background:var(--bg-muted)">
+            <i class="fa-brands fa-instagram text-pink-500"></i> Buka Profil
+          </a>
+          <button type="button"
+            data-action="toggle-flag"
+            class="inline-flex items-center justify-center w-9 h-9 rounded-full border transition-colors hover:opacity-80"
+            style="border-color:var(--border);color:var(--text-muted);background:var(--bg-muted)"
+            title="Toggle penanda">
+            <i class="fa-solid fa-toggle-off"></i>
+          </button>
+        </div>
       </td>
     </tr>`;
 }
@@ -649,6 +1040,23 @@ function buildRow(username, index, tab, dateMap) {
 /* ══════════════════════════════════════════════════════════════
        SECTION 11: TAB EVENTS
     ══════════════════════════════════════════════════════════════ */
+const tableBody = document.getElementById("tableBody");
+if (tableBody) {
+  tableBody.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest("[data-action='toggle-flag']");
+    if (!toggleBtn) return;
+
+    e.preventDefault();
+    const icon = toggleBtn.querySelector("i");
+    const isOn = toggleBtn.dataset.active === "true";
+    toggleBtn.dataset.active = String(!isOn);
+    if (icon) {
+      icon.className = isOn ? "fa-solid fa-toggle-off" : "fa-solid fa-toggle-on";
+      icon.style.color = isOn ? "var(--text-muted)" : "var(--clr-green)";
+    }
+  });
+}
+
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach((b) => {
